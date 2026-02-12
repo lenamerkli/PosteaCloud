@@ -6,17 +6,17 @@ from os.path import exists, join
 from requests import request as requests_send
 
 from util import *
+from database import *
 
 
 load_dotenv()
 
-
 app = Flask(__name__)
 
-if not exists(join(app.root_path, 'resources', 'key.bin')):
-    with open(join(app.root_path, 'resources', 'key.bin'), 'wb') as _f:
+if not exists(join(app.root_path, 'key.bin')):
+    with open(join(app.root_path, 'key.bin'), 'wb') as _f:
         _f.write(urandom(64))
-with open(join(app.root_path, 'resources', 'key.bin'), 'rb') as _f:
+with open(join(app.root_path, 'key.bin'), 'rb') as _f:
     _secret_key = _f.read()
 app.secret_key = _secret_key
 
@@ -37,12 +37,13 @@ else:
         PERMANENT_SESSION_LIFETIME=timedelta(days=128),
     )
 
-
 LogBasicConfig(filename='main.log', format='%(asctime)s\t%(message)s', datefmt=DATE_FORMAT, level=LOG_INFO)
 
 setup_logger('access', join(app.root_path, 'logs', 'access.log'))
 setup_logger('debug', join(app.root_path, 'logs', 'debug.log'))
 access_log = GetLogger('access')
+
+database_init(app)
 
 
 @app.errorhandler(404)
