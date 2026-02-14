@@ -254,3 +254,5 @@ dmypy.json
 .pyre/
 .pytype/
 cython_debug/
+key.bin
+database.sqlite

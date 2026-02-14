@@ -5,8 +5,9 @@ from os import urandom
 from os.path import exists, join
 from requests import request as requests_send
 
-from util import *
-from database import *
+from util.misc import DATE_FORMAT, DEVELOPMENT
+from util.logger import LogBasicConfig, setup_logger, GetLogger, LOG_INFO
+from database.main import database_init
 
 
 load_dotenv()
