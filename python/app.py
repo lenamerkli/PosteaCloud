@@ -5,9 +5,10 @@ from os import urandom
 from os.path import exists, join
 from requests import request as requests_send
 
+from database.main import database_init
+from security.login import login_blueprint
 from util.misc import DATE_FORMAT, DEVELOPMENT
 from util.logger import LogBasicConfig, setup_logger, GetLogger, LOG_INFO
-from database.main import database_init
 
 
 load_dotenv()
@@ -45,6 +46,8 @@ setup_logger('debug', join(app.root_path, 'logs', 'debug.log'))
 access_log = GetLogger('access')
 
 database_init(app)
+
+app.register_blueprint(login_blueprint)
 
 
 @app.errorhandler(404)

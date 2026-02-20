@@ -29,6 +29,12 @@ CREATE TABLE IF NOT EXISTS sessions (
     browser TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS used_totp (
+    otp TEXT NOT NULL,
+    expiry TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 CREATE TABLE IF NOT EXISTS drives (
     id TEXT PRIMARY KEY,
     location TEXT NOT NULL,
