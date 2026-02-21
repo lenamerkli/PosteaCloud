@@ -5,6 +5,9 @@ from ..main import query_db
 from ...util.misc import DATE_FORMAT
 from ...util.rand import rand_id
 
+import partition as partition_module
+import user as user_module
+
 
 class Entry:
 
@@ -336,3 +339,23 @@ class Entry:
     @target_partition_id.setter
     def target_partition_id(self, value: t.Union[str,None]) -> None:
         self._target_partition_id = value
+
+    def get_partition(self) -> partition_module.Partition:
+        return partition_module.Partition.load(self._partition_id)
+
+    def get_owner(self) -> user_module.User:
+        return user_module.User.load(self._owner_id)
+
+    def get_parent(self) -> t.Union['Entry',partition_module.Partition]:
+        if self._parent_id:
+            return Entry.load(self._parent_id)
+        return self.get_partition()
+
+    def is_shared(self) -> bool:
+        return bool(query_db('SELECT id FROM entry_shares WHERE entry_id=?', (self._id,), True))
+
+    def can_user_access(self, user_id: str) -> bool:
+        return (user_id == self._owner_id) or bool(query_db('SELECT id FROM entry_shares WHERE entry_id=? AND user_id=?', (self._id, user_id), True))
+
+    def can_user_edit(self, user_id: str) -> bool:
+        return (user_id == self._owner_id) or bool(query_db('SELECT id FROM entry_shares WHERE entry_id=? AND user_id=? AND allow_write=1', (self._id, user_id), True))

@@ -5,6 +5,8 @@ from ..main import query_db
 from ...util.misc import DATE_FORMAT
 from ...util.rand import rand_id
 
+import partition as partition_module
+
 
 class User:
 
@@ -250,3 +252,12 @@ class User:
     @locale.setter
     def locale(self, value: str) -> None:
         self._locale = value
+
+    def get_own_partitions(self) -> t.List[partition_module.Partition]:
+        result = query_db('SELECT id FROM partitions WHERE owner_id=?', (self.id_,))
+        return [partition_module.Partition.load(row[0]) for row in result]
+
+    def get_accessible_partitions(self) -> t.List[partition_module.Partition]:
+        own_partitions = self.get_own_partitions()
+        result = query_db('SELECT partition_id FROM partition_shares WHERE user_id=?', (self.id_,))
+        return own_partitions + [partition_module.Partition.load(row[0]) for row in result]

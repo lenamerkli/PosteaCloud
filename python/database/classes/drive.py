@@ -3,6 +3,8 @@ import typing as t
 from ..main import query_db
 from ...util.rand import rand_id
 
+import partition as partition_module
+
 
 class Drive:
     def __init__(
@@ -108,3 +110,7 @@ class Drive:
     @description.setter
     def description(self, value: str) -> None:
         self._description = value
+
+    def get_partitions(self) -> t.List[partition_module.Partition]:
+        result = query_db('SELECT id FROM partitions WHERE drive_id=?', (self.id_,))
+        return [partition_module.Partition.load(row[0]) for row in result]
