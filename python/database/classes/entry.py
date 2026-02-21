@@ -1,10 +1,15 @@
 from datetime import datetime
+from hashlib import sha3_256
+from os import makedirs
+from os.path import join, dirname
+import subprocess
 import typing as t
 
 from ..main import query_db
 from ...util.misc import DATE_FORMAT
 from ...util.rand import rand_id
 
+import drive as drive_module
 import partition as partition_module
 import user as user_module
 
@@ -351,6 +356,9 @@ class Entry:
             return Entry.load(self._parent_id)
         return self.get_partition()
 
+    def get_drive(self) -> drive_module.Drive:
+        return self.get_partition().get_drive()
+
     def is_shared(self) -> bool:
         return bool(query_db('SELECT id FROM entry_shares WHERE entry_id=?', (self._id,), True))
 
@@ -359,3 +367,57 @@ class Entry:
 
     def can_user_edit(self, user_id: str) -> bool:
         return (user_id == self._owner_id) or bool(query_db('SELECT id FROM entry_shares WHERE entry_id=? AND user_id=? AND allow_write=1', (self._id, user_id), True))
+
+    def update_edited(self) -> None:
+        self.edited = datetime.now()
+
+    def update_viewed(self) -> None:
+        self.viewed = datetime.now()
+
+    def get_path(self) -> str:
+        return join(self.get_drive().location, self._hash[:2], self._hash[2:4], self._hash[4:])
+
+    def read(self) -> bytes:
+        if self._type != 'file':
+            raise ValueError('Entry is not a file')
+        self.update_viewed()
+        with open(self.get_path(), 'rb') as f:
+            content = f.read()
+        return content
+
+    def write(self, content: bytes) -> None:
+        if self._type != 'file':
+            raise ValueError('Entry is not a file')
+        self.update_edited()
+        self.update_viewed()
+        hash_ = sha3_256(content).hexdigest()
+        self._hash = hash_
+        self._size = len(content)
+        path = join(self.get_drive().location, hash_[:2], hash_[2:4], hash_[4:])
+        makedirs(dirname(path), exist_ok=True)
+        with open(path, 'wb') as f:
+            f.write(content)
+
+    def alternate_write(self, path: str) -> None:
+        if self._type != 'file':
+            raise ValueError('Entry is not a file')
+        self.update_edited()
+        self.update_viewed()
+        hash_result = subprocess.run(
+            ['sha3_256sum', path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        hash_output = hash_result.stdout.strip()
+        self._hash = hash_output.split('= ')[1]
+        size_result = subprocess.run(
+            ['stat', '--printf=%s', path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        self._size = int(size_result.stdout)
+        dest_path = join(self.get_drive().location, self._hash[:2], self._hash[2:4], self._hash[4:])
+        makedirs(dirname(dest_path), exist_ok=True)
+        subprocess.run(['mv', path, dest_path], check=True)
