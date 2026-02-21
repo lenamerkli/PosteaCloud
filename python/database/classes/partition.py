@@ -241,11 +241,11 @@ class Partition:
         return user_module.User.load(self._owner_id)
 
     def get_entries(self) -> t.List[entry_module.Entry]:
-        result = query_db('SELECT id FROM entries WHERE partition_id=?', (self.id_,))
+        result = query_db('SELECT id FROM entries WHERE partition_id=? AND deleted IS NULL', (self.id_,))
         return [entry_module.Entry.load(row[0]) for row in result]
 
     def root_entries(self) -> t.List[entry_module.Entry]:
-        result = query_db('SELECT id FROM entries WHERE partition_id=? AND parent_id IS NULL', (self.id_,))
+        result = query_db('SELECT id FROM entries WHERE partition_id=? AND parent_id IS NULL AND deleted IS NULL', (self.id_,))
         return [entry_module.Entry.load(row[0]) for row in result]
 
     def is_shared(self) -> bool:
