@@ -1,5 +1,4 @@
 from datetime import datetime
-from hashlib import sha3_256
 from os import makedirs
 from os.path import join, dirname
 import subprocess
@@ -385,24 +384,8 @@ class Entry:
             content = f.read()
         return content
 
-    def write(self, content: bytes) -> None:
-        if self._type != 'file':
-            raise ValueError('Entry is not a file')
-        self.update_edited()
-        self.update_viewed()
-        hash_ = sha3_256(content).hexdigest()
-        self._hash = hash_
-        self._size = len(content)
-        path = join(self.get_drive().location, hash_[:2], hash_[2:4], hash_[4:])
-        makedirs(dirname(path), exist_ok=True)
-        with open(path, 'wb') as f:
-            f.write(content)
-
-    def alternate_write(self, path: str) -> None:
-        if self._type != 'file':
-            raise ValueError('Entry is not a file')
-        self.update_edited()
-        self.update_viewed()
+    @classmethod
+    def create_file(cls, path: str, partition: partition_module.Partition, owner_id: str, parent_id: t.Union[str,None], name: str) -> 'Entry':
         hash_result = subprocess.run(
             ['sha3_256sum', path],
             capture_output=True,
@@ -410,14 +393,25 @@ class Entry:
             check=True
         )
         hash_output = hash_result.stdout.strip()
-        self._hash = hash_output.split('= ')[1]
         size_result = subprocess.run(
             ['stat', '--printf=%s', path],
             capture_output=True,
             text=True,
             check=True
         )
-        self._size = int(size_result.stdout)
-        dest_path = join(self.get_drive().location, self._hash[:2], self._hash[2:4], self._hash[4:])
+        size = int(size_result.stdout)
+        dest_path = join(partition.get_drive().location, hash_output[:2], hash_output[2:4], hash_output[4:])
         makedirs(dirname(dest_path), exist_ok=True)
         subprocess.run(['mv', path, dest_path], check=True)
+        db_result = query_db('SELECT id FROM entries WHERE hash=? AND owner_id=? AND partition_id=? AND parent_id=?', (hash_output, owner_id, partition.id_, parent_id), True)
+        if db_result:
+            return Entry.load(db_result[0])
+        return Entry(
+            type_='file',
+            name=name,
+            parent_id=parent_id,
+            owner_id=owner_id,
+            partition_id=partition.id_,
+            size=size,
+            hash_=hash_output,
+        )
