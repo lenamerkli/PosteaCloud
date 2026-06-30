@@ -7,6 +7,7 @@ from requests import request as requests_send
 
 from database.main import database_init
 from security.login import login_blueprint
+from storage.main import storage_blueprint
 from util.misc import DATE_FORMAT, DEVELOPMENT
 from util.logger import LogBasicConfig, setup_logger, GetLogger, LOG_INFO
 
@@ -48,6 +49,7 @@ access_log = GetLogger('access')
 database_init(app)
 
 app.register_blueprint(login_blueprint)
+app.register_blueprint(storage_blueprint)
 
 
 @app.errorhandler(404)
