@@ -150,46 +150,6 @@ def r_partitions_get():
     }, 200
 
 
-@storage_blueprint.route('/api/v1/partitions', methods=['POST'])
-def r_partitions_post():
-    user, err = _auth_user()
-    if err:
-        return err
-
-    data, err = _json_request()
-    if err:
-        return err
-
-    name = (data.get('name') or '').strip()
-    if not name:
-        return {'error': 'validation', 'message': 'Partition name is required.'}, 400
-
-    drive_id = data.get('drive_id', '')
-    if not drive_id:
-        drives = query_db('SELECT id FROM drives LIMIT 1', (), True)
-        if not drives:
-            return {'error': 'no drive', 'message': 'No storage drive available.'}, 503
-        drive_id = drives[0]
-
-    capacity = data.get('capacity', 0)
-    if not isinstance(capacity, int) or capacity < 0:
-        capacity = 0
-
-    partition = Partition(
-        drive_id=drive_id,
-        name=name,
-        owner_id=user.id_,
-        capacity=capacity,
-    )
-    partition.save()
-
-    return {
-        'success': 'success',
-        'message': 'Partition created.',
-        'partition': _enrich_partition(partition, user),
-    }, 201
-
-
 @storage_blueprint.route('/api/v1/partitions/<partition_id>', methods=['GET'])
 def r_partitions_partition_get(partition_id: str):
     user, err = _auth_user()
@@ -203,43 +163,6 @@ def r_partitions_partition_get(partition_id: str):
     return {
         'success': 'success',
         'message': 'Partition retrieved.',
-        'partition': _enrich_partition(part, user),
-    }, 200
-
-
-@storage_blueprint.route('/api/v1/partitions/<partition_id>', methods=['PUT'])
-def r_partitions_partition_put(partition_id: str):
-    user, err = _auth_user()
-    if err:
-        return err
-
-    part, err = _get_partition_or_error(partition_id, user)
-    if err:
-        return err
-
-    edit_err = _check_partition_edit(part, user)
-    if edit_err:
-        return edit_err
-
-    data, err = _json_request()
-    if err:
-        return err
-
-    if 'name' in data:
-        name = (data['name'] or '').strip()
-        if name:
-            part.name = name
-    if 'capacity' in data:
-        cap = data['capacity']
-        if isinstance(cap, int) and cap >= 0:
-            part.capacity = cap
-
-    part.edited = datetime.now()
-    part.save()
-
-    return {
-        'success': 'success',
-        'message': 'Partition updated.',
         'partition': _enrich_partition(part, user),
     }, 200
 
@@ -706,6 +629,42 @@ def r_trash():
 # Sharing — partitions
 # ---------------------------------------------------------------------------
 
+@storage_blueprint.route('/api/v1/partitions/<partition_id>/share', methods=['GET'])
+def r_partitions_partition_share_list(partition_id: str):
+    user, err = _auth_user()
+    if err:
+        return err
+
+    part, err = _get_partition_or_error(partition_id, user)
+    if err:
+        return err
+
+    if part.owner_id != user.id_:
+        return {'error': 'forbidden', 'message': 'Only the owner can view shares.'}, 403
+
+    result = query_db(
+        'SELECT ps.user_id, u.username, ps.allow_write, ps.created '
+        'FROM partition_shares ps '
+        'JOIN users u ON u.id = ps.user_id '
+        'WHERE ps.partition_id=?',
+        (partition_id,),
+    )
+    shares = [
+        {
+            'user_id': row[0],
+            'username': row[1],
+            'allow_write': bool(row[2]),
+            'created': row[3],
+        }
+        for row in result
+    ]
+    return {
+        'success': 'success',
+        'message': 'Partition shares retrieved.',
+        'shares': shares,
+    }, 200
+
+
 @storage_blueprint.route('/api/v1/partitions/<partition_id>/share', methods=['POST'])
 def r_partitions_partition_share(partition_id: str):
     user, err = _auth_user()
@@ -788,6 +747,42 @@ def r_partitions_partition_share_user(partition_id: str, target_user_id: str):
 # ---------------------------------------------------------------------------
 # Sharing — entries
 # ---------------------------------------------------------------------------
+
+@storage_blueprint.route('/api/v1/entries/<entry_id>/share', methods=['GET'])
+def r_entries_entry_share_list(entry_id: str):
+    user, err = _auth_user()
+    if err:
+        return err
+
+    entry, err = _get_entry_or_error(entry_id, user.id_)
+    if err:
+        return err
+
+    if entry.owner_id != user.id_:
+        return {'error': 'forbidden', 'message': 'Only the owner can view shares.'}, 403
+
+    result = query_db(
+        'SELECT es.user_id, u.username, es.allow_write, es.created '
+        'FROM entry_shares es '
+        'JOIN users u ON u.id = es.user_id '
+        'WHERE es.entry_id=?',
+        (entry_id,),
+    )
+    shares = [
+        {
+            'user_id': row[0],
+            'username': row[1],
+            'allow_write': bool(row[2]),
+            'created': row[3],
+        }
+        for row in result
+    ]
+    return {
+        'success': 'success',
+        'message': 'Entry shares retrieved.',
+        'shares': shares,
+    }, 200
+
 
 @storage_blueprint.route('/api/v1/entries/<entry_id>/share', methods=['POST'])
 def r_entries_entry_share(entry_id: str):

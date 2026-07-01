@@ -136,6 +136,29 @@ def r_account():
     return {'success': 'success', 'message': 'Successfully retrieved account information.', 'account': user.to_json()}, 200
 
 
+@login_blueprint.route('/api/v1/users', methods=['GET'])
+def r_users_search():
+    user_id = get_user_id()
+    if not user_id:
+        return {'error': 'authentication error', 'message': 'Invalid session.'}, 401
+    username = (request.args.get('username') or '').strip()
+    if not username:
+        return {'error': 'validation', 'message': 'Query parameter "username" is required.'}, 400
+    if len(username) < 2:
+        return {'error': 'validation', 'message': 'Username query must be at least 2 characters.'}, 400
+    like_name = f'%{username}%'
+    result = query_db(
+        'SELECT id, username FROM users WHERE username LIKE ?',
+        (like_name,),
+    )
+    users = [{'user_id': row[0], 'username': row[1]} for row in result]
+    return {
+        'success': 'success',
+        'message': 'Users retrieved.',
+        'users': users,
+    }, 200
+
+
 @login_blueprint.route('/api/v1/hash_password', methods=['POST'])
 def r_hash__password():
     try:
