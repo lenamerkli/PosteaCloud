@@ -5,13 +5,8 @@ import subprocess
 import typing as t
 
 from ..main import query_db
-from ...util.misc import DATE_FORMAT
-from ...util.rand import rand_id
-
-import drive as drive_module
-import partition as partition_module
-import user as user_module
-
+from util.misc import DATE_FORMAT
+from util.rand import rand_id
 
 class Entry:
 
@@ -344,18 +339,21 @@ class Entry:
     def target_partition_id(self, value: t.Union[str,None]) -> None:
         self._target_partition_id = value
 
-    def get_partition(self) -> partition_module.Partition:
+    def get_partition(self):
+        from . import partition as partition_module
         return partition_module.Partition.load(self._partition_id)
 
-    def get_owner(self) -> user_module.User:
+    def get_owner(self):
+        from . import user as user_module
         return user_module.User.load(self._owner_id)
 
-    def get_parent(self) -> t.Union['Entry',partition_module.Partition]:
+    def get_parent(self):
+        from . import partition as partition_module
         if self._parent_id:
             return Entry.load(self._parent_id)
-        return self.get_partition()
+        return partition_module.Partition.load(self._partition_id)
 
-    def get_drive(self) -> drive_module.Drive:
+    def get_drive(self):
         return self.get_partition().get_drive()
 
     def is_shared(self) -> bool:
@@ -385,7 +383,7 @@ class Entry:
         return content
 
     @classmethod
-    def create_file(cls, path: str, partition: partition_module.Partition, owner_id: str, parent_id: t.Union[str,None], name: str) -> 'Entry':
+    def create_file(cls, path: str, partition, owner_id: str, parent_id: t.Union[str,None], name: str) -> 'Entry':
         hash_result = subprocess.run(
             ['sha3_256sum', path],
             capture_output=True,

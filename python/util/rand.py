@@ -2,7 +2,7 @@ from base64 import urlsafe_b64encode
 from datetime import datetime
 from os import urandom
 
-from ..database.main import query_db
+from database.main import query_db
 from .misc import DATE_FORMAT
 
 

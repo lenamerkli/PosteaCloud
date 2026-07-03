@@ -2,13 +2,8 @@ from datetime import datetime
 import typing as t
 
 from ..main import query_db
-from ...util.misc import DATE_FORMAT
-from ...util.rand import rand_id
-
-import drive as drive_module
-import user as user_module
-import entry as entry_module
-
+from util.misc import DATE_FORMAT
+from util.rand import rand_id
 
 class Partition:
 
@@ -234,25 +229,29 @@ class Partition:
     def hidden(self, value: t.Union[bool,int]) -> None:
         self._hidden = int(value)
 
-    def get_drive(self) -> drive_module.Drive:
+    def get_drive(self):
+        from . import drive as drive_module
         return drive_module.Drive.load(self._drive_id)
 
-    def get_owner(self) -> user_module.User:
+    def get_owner(self):
+        from . import user as user_module
         return user_module.User.load(self._owner_id)
 
-    def get_entries(self) -> t.List[entry_module.Entry]:
+    def get_entries(self):
+        from . import entry as entry_module
         result = query_db('SELECT id FROM entries WHERE partition_id=? AND deleted IS NULL', (self.id_,))
         return [entry_module.Entry.load(row[0]) for row in result]
 
-    def root_entries(self) -> t.List[entry_module.Entry]:
+    def root_entries(self):
+        from . import entry as entry_module
         result = query_db('SELECT id FROM entries WHERE partition_id=? AND parent_id IS NULL AND deleted IS NULL', (self.id_,))
         return [entry_module.Entry.load(row[0]) for row in result]
 
     def is_shared(self) -> bool:
         return bool(query_db('SELECT id FROM partition_shares WHERE partition_id=?', (self.id_,), True))
 
-    def can_user_access(self, user: user_module.User) -> bool:
+    def can_user_access(self, user) -> bool:
         return (user.id_ == self.owner_id) or bool(query_db('SELECT id FROM partition_shares WHERE partition_id=? AND user_id=?', (self.id_, user.id_), True))
 
-    def can_user_edit(self, user: user_module.User) -> bool:
+    def can_user_edit(self, user) -> bool:
         return (user.id_ == self.owner_id) or bool(query_db('SELECT id FROM partition_shares WHERE partition_id=? AND user_id=? AND allow_write=1', (self.id_, user.id_), True))

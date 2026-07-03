@@ -11,10 +11,10 @@ from secrets import randbelow
 from time import sleep
 from user_agents import parse
 
-from ..database.classes.user import User
-from ..database.main import query_db
-from ..util.misc import DATE_FORMAT
-from ..util.rand import rand_base64, rand_salt
+from database.classes.user import User
+from database.main import query_db
+from util.misc import DATE_FORMAT
+from util.rand import rand_base64, rand_salt
 
 
 class RLoginData(BaseModel):

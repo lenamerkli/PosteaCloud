@@ -2,11 +2,8 @@ from datetime import datetime
 import typing as t
 
 from ..main import query_db
-from ...util.misc import DATE_FORMAT
-from ...util.rand import rand_id
-
-import partition as partition_module
-
+from util.misc import DATE_FORMAT
+from util.rand import rand_id
 
 class User:
 
@@ -253,11 +250,13 @@ class User:
     def locale(self, value: str) -> None:
         self._locale = value
 
-    def get_own_partitions(self) -> t.List[partition_module.Partition]:
+    def get_own_partitions(self):
+        from . import partition as partition_module
         result = query_db('SELECT id FROM partitions WHERE owner_id=?', (self.id_,))
         return [partition_module.Partition.load(row[0]) for row in result]
 
-    def get_accessible_partitions(self) -> t.List[partition_module.Partition]:
+    def get_accessible_partitions(self):
+        from . import partition as partition_module
         own_partitions = self.get_own_partitions()
         result = query_db('SELECT partition_id FROM partition_shares WHERE user_id=?', (self.id_,))
         return own_partitions + [partition_module.Partition.load(row[0]) for row in result]

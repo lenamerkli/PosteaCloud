@@ -2,8 +2,8 @@ from datetime import datetime
 import typing as t
 
 from ..main import query_db
-from ...util.misc import DATE_FORMAT
-from ...util.rand import rand_id
+from util.misc import DATE_FORMAT
+from util.rand import rand_id
 
 
 class Tag:
