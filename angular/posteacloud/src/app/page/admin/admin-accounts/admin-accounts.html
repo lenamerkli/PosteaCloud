@@ -1,0 +1,95 @@
+<div class="admin-accounts">
+  <div class="admin-accounts__header">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="toggleCreateForm()"
+      aria-label="New account"
+    >
+      <mat-icon>person_add</mat-icon>
+      New account
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <form class="admin-accounts__form" [formGroup]="createForm" (ngSubmit)="submitCreate()">
+      <mat-form-field appearance="outline">
+        <mat-label>Username</mat-label>
+        <input matInput formControlName="username" required aria-label="Username" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" required aria-label="Email" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Password</mat-label>
+        <input matInput type="password" formControlName="password" required aria-label="Password" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>TOTP secret</mat-label>
+        <input matInput formControlName="totp" required aria-label="TOTP secret" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Balance</mat-label>
+        <input matInput type="number" formControlName="balance" aria-label="Balance" />
+      </mat-form-field>
+      @if (errorMessage()) {
+        <p class="admin-accounts__error" role="alert">{{ errorMessage() }}</p>
+      }
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="createForm.invalid"
+        aria-label="Create account"
+      >
+        Create
+      </button>
+    </form>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else {
+    <table mat-table [dataSource]="accounts()" class="admin-accounts__table">
+      <ng-container matColumnDef="username">
+        <th mat-header-cell *matHeaderCellDef scope="col">Username</th>
+        <td mat-cell *matCellDef="let account">{{ account.username }}</td>
+      </ng-container>
+      <ng-container matColumnDef="email">
+        <th mat-header-cell *matHeaderCellDef scope="col">Email</th>
+        <td mat-cell *matCellDef="let account">{{ account.email }}</td>
+      </ng-container>
+      <ng-container matColumnDef="balance">
+        <th mat-header-cell *matHeaderCellDef scope="col">Balance</th>
+        <td mat-cell *matCellDef="let account">{{ account.balance }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef scope="col">
+          <span class="cdk-visually-hidden">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let account">
+          <button
+            mat-icon-button
+            type="button"
+            (click)="resetPassword(account)"
+            [attr.aria-label]="'Reset password for ' + account.username"
+          >
+            <mat-icon>lock_reset</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            (click)="deleteAccount(account)"
+            [attr.aria-label]="'Delete ' + account.username"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  }
+</div>

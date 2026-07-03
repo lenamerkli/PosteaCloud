@@ -30,7 +30,7 @@ def rand_salt() -> str:
 
 def rand_id(class_: str, digits: int=16) -> str:
     while True:
-        n = f"{class_}#{urlsafe_b64encode(urandom(digits)).decode()[:digits]}"
+        n = f"{class_}={urlsafe_b64encode(urandom(digits)).decode()[:digits]}"
         result = query_db('SELECT * FROM used_ids WHERE id=?', (n,), True)
         if not result:
             query_db('INSERT INTO used_ids VALUES (?, ?)', (n, datetime.now().strftime(DATE_FORMAT)))

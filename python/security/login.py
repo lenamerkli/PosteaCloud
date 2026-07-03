@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask import request, session, Blueprint
 from hashlib import pbkdf2_hmac
-from logging import log
+from logging import log, getLogger
 from os import environ
 from pydantic import BaseModel, ValidationError
 from pyotp import TOTP
@@ -15,6 +15,8 @@ from database.classes.user import User
 from database.main import query_db
 from util.misc import DATE_FORMAT
 from util.rand import rand_base64, rand_salt
+
+debug_log = getLogger('debug')
 
 
 class RLoginData(BaseModel):
@@ -103,17 +105,21 @@ def r_login():
     authentication_error = {'error': 'authentication error', 'message': 'Invalid email, password, or TOTP'}, 400
     sleep((randbelow(2 ** 16) / (2 ** 16)) / 7)
     if not user_id:
+        debug_log.info(f'Login failed for email="{login_data["email"]}": email not found')
         return authentication_error
     user_id: str = user_id[0]
     user = User.load(user_id)
     if user.password != hash_password(login_data['password'], user.salt):
+        debug_log.info(f'Login failed for email="{login_data["email"]}" user_id={user_id}: incorrect password')
         return authentication_error
     if is_totp_used(user_id, login_data['totp']):
+        debug_log.info(f'Login failed for email="{login_data["email"]}" user_id={user_id}: TOTP already used')
         return authentication_error
     totp = TOTP(user.totp)
     totp_valid = totp.verify(login_data['totp'], valid_window=1)
     store_used_totp(user_id, login_data['totp'])
     if not totp_valid:
+        debug_log.info(f'Login failed for email="{login_data["email"]}" user_id={user_id}: invalid TOTP')
         return authentication_error
     create_session(user_id)
     user.last_login = datetime.now()

@@ -1,0 +1,25 @@
+<div class="admin">
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (!allowed()) {
+    <p class="admin__error" role="alert">{{ errorMessage() }}</p>
+  } @else {
+    <mat-tab-group>
+      <mat-tab label="Drives">
+        <app-admin-drives />
+      </mat-tab>
+      <mat-tab label="Partitions">
+        <app-admin-partitions />
+      </mat-tab>
+      <mat-tab label="Accounts">
+        <app-admin-accounts />
+      </mat-tab>
+      <mat-tab label="IP scores">
+        <app-admin-ips />
+      </mat-tab>
+      <mat-tab label="Usage">
+        <app-admin-usage />
+      </mat-tab>
+    </mat-tab-group>
+  }
+</div>

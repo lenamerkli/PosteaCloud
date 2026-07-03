@@ -1,0 +1,78 @@
+<h2 mat-dialog-title>Share "{{ data.targetName }}"</h2>
+<mat-dialog-content class="share-dialog__content">
+  <mat-form-field appearance="outline" class="share-dialog__search">
+    <mat-label>Search users by username</mat-label>
+    <input
+      matInput
+      [ngModel]="searchTerm()"
+      (ngModelChange)="onSearchInput($event)"
+      aria-label="Search users by username"
+    />
+  </mat-form-field>
+
+  <mat-slide-toggle
+    [checked]="newShareAllowWrite()"
+    (change)="newShareAllowWrite.set($event.checked)"
+    aria-label="Grant write access to new shares"
+  >
+    Allow write access
+  </mat-slide-toggle>
+
+  @if (searchResults().length > 0) {
+    <mat-nav-list class="share-dialog__results">
+      @for (user of searchResults(); track user.userId) {
+        <a
+          mat-list-item
+          (click)="addShare(user)"
+          [attr.aria-label]="'Share with ' + user.username"
+        >
+          <mat-icon matListItemIcon>person_add</mat-icon>
+          <span matListItemTitle>{{ user.username }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  }
+
+  @if (errorMessage()) {
+    <p class="share-dialog__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <h3>Currently shared with</h3>
+  @if (loading()) {
+    <div class="share-dialog__loading">
+      <mat-progress-spinner diameter="28" mode="indeterminate" />
+    </div>
+  } @else if (shares().length === 0) {
+    <p class="share-dialog__empty">Not shared with anyone yet.</p>
+  } @else {
+    <mat-list>
+      @for (share of shares(); track share.userId) {
+        <mat-list-item>
+          <span matListItemTitle>{{ share.username }}</span>
+          <span matListItemLine>{{ share.allowWrite ? 'Can edit' : 'Read only' }}</span>
+          <div matListItemMeta class="share-dialog__actions">
+            <button
+              mat-icon-button
+              type="button"
+              (click)="toggleWrite(share)"
+              [attr.aria-label]="'Toggle write access for ' + share.username"
+            >
+              <mat-icon>{{ share.allowWrite ? 'edit_off' : 'edit' }}</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              type="button"
+              (click)="revoke(share)"
+              [attr.aria-label]="'Revoke access for ' + share.username"
+            >
+              <mat-icon>person_remove</mat-icon>
+            </button>
+          </div>
+        </mat-list-item>
+      }
+    </mat-list>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="close()" aria-label="Close">Close</button>
+</mat-dialog-actions>

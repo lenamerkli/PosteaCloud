@@ -1,0 +1,94 @@
+<div class="admin-partitions">
+  <div class="admin-partitions__header">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="toggleCreateForm()"
+      aria-label="New partition"
+    >
+      <mat-icon>add</mat-icon>
+      New partition
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <form class="admin-partitions__form" [formGroup]="createForm" (ngSubmit)="submitCreate()">
+      <mat-form-field appearance="outline">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" required aria-label="Partition name" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Drive</mat-label>
+        <mat-select formControlName="driveId" required aria-label="Drive">
+          @for (drive of drives(); track drive.id) {
+            <mat-option [value]="drive.id">{{ drive.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Owner</mat-label>
+        <mat-select formControlName="ownerId" required aria-label="Owner">
+          @for (account of accounts(); track account.id) {
+            <mat-option [value]="account.id">{{ account.username }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Capacity (bytes)</mat-label>
+        <input matInput type="number" formControlName="capacity" required aria-label="Capacity in bytes" />
+      </mat-form-field>
+      <button mat-flat-button color="primary" type="submit" [disabled]="createForm.invalid" aria-label="Create partition">
+        Create
+      </button>
+    </form>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else {
+    <table mat-table [dataSource]="partitions()" class="admin-partitions__table">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef scope="col">Name</th>
+        <td mat-cell *matCellDef="let partition">{{ partition.name }}</td>
+      </ng-container>
+      <ng-container matColumnDef="drive">
+        <th mat-header-cell *matHeaderCellDef scope="col">Drive</th>
+        <td mat-cell *matCellDef="let partition">{{ driveName(partition.driveId) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="owner">
+        <th mat-header-cell *matHeaderCellDef scope="col">Owner</th>
+        <td mat-cell *matCellDef="let partition">{{ ownerName(partition.ownerId) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="capacity">
+        <th mat-header-cell *matHeaderCellDef scope="col">Capacity</th>
+        <td mat-cell *matCellDef="let partition">{{ partition.capacity }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef scope="col">
+          <span class="cdk-visually-hidden">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let partition">
+          <button
+            mat-icon-button
+            type="button"
+            (click)="renamePartition(partition)"
+            [attr.aria-label]="'Rename ' + partition.name"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            (click)="deletePartition(partition)"
+            [attr.aria-label]="'Delete ' + partition.name"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  }
+</div>

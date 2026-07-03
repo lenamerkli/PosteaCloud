@@ -1,0 +1,60 @@
+<div class="admin-usage">
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (usage()) {
+    <section class="admin-usage__section">
+      <h3>Total</h3>
+      <p>{{ formatBytes(usage()!.totalUsed) }} / {{ formatBytes(usage()!.totalCapacity) }}</p>
+      <mat-progress-bar
+        mode="determinate"
+        [value]="percent(usage()!.totalUsed, usage()!.totalCapacity)"
+        aria-label="Total storage usage"
+      />
+    </section>
+
+    <section class="admin-usage__section">
+      <h3>By drive</h3>
+      @for (drive of usage()!.drives; track drive.drive_id) {
+        <div class="admin-usage__row">
+          <span class="admin-usage__label">{{ drive.drive_id }}</span>
+          <span>{{ formatBytes(drive.used) }} / {{ formatBytes(drive.capacity) }}</span>
+          <mat-progress-bar
+            mode="determinate"
+            [value]="percent(drive.used, drive.capacity)"
+            [attr.aria-label]="'Usage for drive ' + drive.drive_id"
+          />
+        </div>
+      }
+    </section>
+
+    <section class="admin-usage__section">
+      <h3>By partition</h3>
+      @for (partition of usage()!.partitions; track partition.partition_id) {
+        <div class="admin-usage__row">
+          <span class="admin-usage__label">{{ partition.partition_id }}</span>
+          <span>{{ formatBytes(partition.used) }} / {{ formatBytes(partition.capacity) }}</span>
+          <mat-progress-bar
+            mode="determinate"
+            [value]="percent(partition.used, partition.capacity)"
+            [attr.aria-label]="'Usage for partition ' + partition.partition_id"
+          />
+        </div>
+      }
+    </section>
+
+    <section class="admin-usage__section">
+      <h3>By user</h3>
+      @for (user of usage()!.users; track user.user_id) {
+        <div class="admin-usage__row">
+          <span class="admin-usage__label">{{ user.user_id }}</span>
+          <span>{{ formatBytes(user.used) }} / {{ formatBytes(user.capacity) }}</span>
+          <mat-progress-bar
+            mode="determinate"
+            [value]="percent(user.used, user.capacity)"
+            [attr.aria-label]="'Usage for user ' + user.user_id"
+          />
+        </div>
+      }
+    </section>
+  }
+</div>

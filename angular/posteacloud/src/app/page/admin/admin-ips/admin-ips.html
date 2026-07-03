@@ -1,0 +1,84 @@
+<div class="admin-ips">
+  <div class="admin-ips__header">
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      (click)="toggleCreateForm()"
+      aria-label="New IP score entry"
+    >
+      <mat-icon>add</mat-icon>
+      New entry
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <form class="admin-ips__form" [formGroup]="createForm" (ngSubmit)="submitCreate()">
+      <mat-form-field appearance="outline">
+        <mat-label>IP address</mat-label>
+        <input matInput formControlName="ip" required aria-label="IP address" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Score</mat-label>
+        <input matInput type="number" formControlName="score" required aria-label="Score" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Description</mat-label>
+        <input matInput formControlName="description" aria-label="Description" />
+      </mat-form-field>
+      <button
+        mat-flat-button
+        color="primary"
+        type="submit"
+        [disabled]="createForm.invalid"
+        aria-label="Create IP score entry"
+      >
+        Create
+      </button>
+    </form>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else {
+    <table mat-table [dataSource]="ips()" class="admin-ips__table">
+      <ng-container matColumnDef="ip">
+        <th mat-header-cell *matHeaderCellDef scope="col">IP</th>
+        <td mat-cell *matCellDef="let entry">{{ entry.ip }}</td>
+      </ng-container>
+      <ng-container matColumnDef="score">
+        <th mat-header-cell *matHeaderCellDef scope="col">Score</th>
+        <td mat-cell *matCellDef="let entry">
+          <input
+            type="number"
+            [value]="entry.score"
+            (change)="updateScore(entry, $any($event.target).value)"
+            [attr.aria-label]="'Score for ' + entry.ip"
+            class="admin-ips__score-input"
+          />
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="description">
+        <th mat-header-cell *matHeaderCellDef scope="col">Description</th>
+        <td mat-cell *matCellDef="let entry">{{ entry.description }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef scope="col">
+          <span class="cdk-visually-hidden">Actions</span>
+        </th>
+        <td mat-cell *matCellDef="let entry">
+          <button
+            mat-icon-button
+            type="button"
+            (click)="deleteIp(entry)"
+            [attr.aria-label]="'Delete entry for ' + entry.ip"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  }
+</div>

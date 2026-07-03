@@ -1,0 +1,148 @@
+<main class="hash">
+  <mat-card class="hash__card">
+    <mat-card-header>
+      <mat-card-title>Security Tools</mat-card-title>
+      <mat-card-subtitle>Hash passwords &amp; generate TOTP tokens</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <mat-tab-group dynamicHeight>
+        <!-- Password Hashing Tab -->
+        <mat-tab label="Hash Password">
+          <div class="hash__tab-content">
+            <mat-form-field appearance="outline" class="hash__field">
+              <mat-label>Password</mat-label>
+              <input
+                matInput
+                type="password"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
+                placeholder="Enter a password to hash"
+                (keyup.enter)="hashPassword()"
+              />
+            </mat-form-field>
+
+            <button
+              mat-flat-button
+              color="primary"
+              class="hash__action-btn"
+              [disabled]="hashing() || !password().trim()"
+              (click)="hashPassword()"
+            >
+              @if (hashing()) {
+                <mat-progress-spinner diameter="20" mode="indeterminate" />
+              } @else {
+                Hash Password
+              }
+            </button>
+
+            @if (salt()) {
+              <div class="hash__result-field">
+                <div class="hash__result-label">Salt</div>
+                <div class="hash__result-row">
+                  <code class="hash__result-value">{{ salt() }}</code>
+                  <button
+                    mat-icon-button
+                    class="hash__copy-btn"
+                    (click)="copyToClipboard(salt(), 'Salt')"
+                    aria-label="Copy salt to clipboard"
+                  >
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+
+            @if (hashedPassword()) {
+              <div class="hash__result-field">
+                <div class="hash__result-label">Hashed Password</div>
+                <div class="hash__result-row">
+                  <code class="hash__result-value">{{ hashedPassword() }}</code>
+                  <button
+                    mat-icon-button
+                    class="hash__copy-btn"
+                    (click)="copyToClipboard(hashedPassword(), 'Hashed password')"
+                    aria-label="Copy hashed password to clipboard"
+                  >
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </mat-tab>
+
+        <!-- TOTP Generator Tab -->
+        <mat-tab label="Generate TOTP">
+          <div class="hash__tab-content">
+            <p class="hash__tab-desc">
+              Generate a new TOTP secret that you can import into your authenticator app (Google
+              Authenticator, Authy, etc.) using the QR code below.
+            </p>
+
+            <button
+              mat-flat-button
+              color="primary"
+              class="hash__action-btn"
+              [disabled]="generatingTotp()"
+              (click)="generateTotp()"
+            >
+              @if (generatingTotp()) {
+                <mat-progress-spinner diameter="20" mode="indeterminate" />
+              } @else {
+                Generate TOTP Secret
+              }
+            </button>
+
+            @if (totpSecret()) {
+              <div class="hash__result-field">
+                <div class="hash__result-label">TOTP Secret</div>
+                <div class="hash__result-row">
+                  <code class="hash__result-value">{{ totpSecret() }}</code>
+                  <button
+                    mat-icon-button
+                    class="hash__copy-btn"
+                    (click)="copyToClipboard(totpSecret(), 'TOTP secret')"
+                    aria-label="Copy TOTP secret to clipboard"
+                  >
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+
+            @if (qrDataUrl()) {
+              <div class="hash__qr-container">
+                <div class="hash__result-label">QR Code</div>
+                <img
+                  [src]="qrDataUrl()"
+                  alt="QR code for TOTP import"
+                  class="hash__qr-image"
+                />
+                <p class="hash__qr-hint">Scan this QR code with your authenticator app.</p>
+              </div>
+            }
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+
+      <!-- JSON Result Display -->
+      @if (resultJson()) {
+        <div class="hash__json-section">
+          <div class="hash__json-header">
+            <h3 class="hash__json-title">Result JSON</h3>
+            <button
+              mat-icon-button
+              class="hash__copy-btn"
+              (click)="copyToClipboard(resultJson(), 'Result JSON')"
+              aria-label="Copy result JSON to clipboard"
+            >
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+          <pre class="hash__json-output">{{ resultJson() }}</pre>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+</main>

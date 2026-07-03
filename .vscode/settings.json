@@ -1,0 +1,11 @@
+{
+    "sqltools.useNodeRuntime": true,
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "database": "${workspaceFolder:PosteaCloud}/python/database/database.sqlite",
+            "name": "PosteaCloud"
+        }
+    ]
+}

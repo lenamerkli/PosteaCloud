@@ -458,6 +458,148 @@ def r_etnries_parent_upload(parent_id: str):
     }, 201
 
 
+@storage_blueprint.route('/api/v1/entries/<parent_id>/upload-batch', methods=['POST'])
+def r_entries_parent_upload_batch(parent_id: str):
+    """
+    Upload multiple files at once. ``parent_id`` can be a folder entry id or
+    a partition id. A ``relative_path`` form field may accompany each file to
+    recreate a directory structure (e.g. "sub/dir/file.txt").
+    """
+    user, err = _auth_user()
+    if err:
+        return err
+
+    # Resolve parent — same logic as single-file upload
+    parent_entry = None
+    partition = None
+    actual_parent_id = None
+
+    try:
+        parent_entry = Entry.load(parent_id)
+    except ValueError:
+        pass
+
+    if parent_entry:
+        if parent_entry.type_ != 'folder':
+            return {'error': 'invalid type', 'message': 'Parent must be a folder.'}, 400
+        part, err = _get_partition_or_error(parent_entry.partition_id, user)
+        if err:
+            return err
+        partition = part
+        actual_parent_id = parent_entry.id_
+        if not parent_entry.can_user_edit(user.id_):
+            return {'error': 'forbidden', 'message': 'Write access denied.'}, 403
+    else:
+        part, err = _get_partition_or_error(parent_id, user)
+        if err:
+            return err
+        partition = part
+        actual_parent_id = None
+        edit_err = _check_partition_edit(partition, user)
+        if edit_err:
+            return edit_err
+
+    uploaded_files = request.files.getlist('files')
+    if not uploaded_files:
+        return {'error': 'validation', 'message': 'No files provided.'}, 400
+
+    # relative_paths is an optional list that matches the file list index.
+    relative_paths = request.form.getlist('relative_paths')
+
+    results = []
+    errors_list = []
+
+    for idx, file in enumerate(uploaded_files):
+        if not file.filename or file.filename.strip() == '':
+            continue
+
+        rel_path = relative_paths[idx] if idx < len(relative_paths) else None
+        # Build folder structure if a relative path was supplied
+        current_parent_id = actual_parent_id
+        if rel_path:
+            # Split relative path into directory components; the last
+            # component is the file name itself.
+            parts = rel_path.strip().split('/')
+            # If the path has directory components, create/find folders
+            if len(parts) > 1:
+                for dir_name in parts[:-1]:
+                    if not dir_name:
+                        continue
+                    current_parent_id = _ensure_folder(
+                        name=dir_name,
+                        partition=partition,
+                        parent_id=current_parent_id,
+                        owner_id=user.id_,
+                    )
+            name = parts[-1] if parts[-1] else file.filename.strip()
+        else:
+            name = file.filename.strip()
+
+        if not name:
+            continue
+
+        tmp_path = None
+        try:
+            import os as _os
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp_path = tmp.name
+                file.save(tmp_path)
+
+            entry = Entry.create_file(
+                path=tmp_path,
+                partition=partition,
+                owner_id=user.id_,
+                parent_id=current_parent_id,
+                name=name,
+            )
+            entry.save()
+            results.append(_enrich_entry(entry, user.id_))
+        except Exception as ex:
+            log(20, f"storage: batch upload failed for {name}: {ex}")
+            errors_list.append({'file': name, 'error': str(ex)})
+        finally:
+            if tmp_path is not None:
+                try:
+                    _os.unlink(tmp_path)
+                except FileNotFoundError:
+                    pass
+
+    status_code = 201 if results else 500
+    body = {
+        'success': 'success' if results else 'error',
+        'message': f'{len(results)} file(s) uploaded, {len(errors_list)} error(s).',
+        'entries': results,
+    }
+    if errors_list:
+        body['upload_errors'] = errors_list
+    return body, status_code
+
+
+def _ensure_folder(name: str, partition, parent_id, owner_id: str) -> str:
+    """Return the id of an existing folder with *name* under *parent_id*, or
+    create it and return the new id."""
+    from database.main import query_db
+
+    existing = query_db(
+        'SELECT id FROM entries WHERE type=? AND name=? AND parent_id=? '
+        'AND partition_id=? AND deleted IS NULL',
+        ('folder', name, parent_id, partition.id_),
+        True,
+    )
+    if existing:
+        return existing[0]
+
+    folder = Entry(
+        type_='folder',
+        name=name,
+        parent_id=parent_id,
+        owner_id=owner_id,
+        partition_id=partition.id_,
+    )
+    folder.save()
+    return folder.id_
+
+
 # ---------------------------------------------------------------------------
 # Entries — download
 # ---------------------------------------------------------------------------

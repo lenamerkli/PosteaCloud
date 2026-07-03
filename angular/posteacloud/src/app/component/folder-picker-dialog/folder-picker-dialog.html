@@ -1,0 +1,55 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+<mat-dialog-content class="folder-picker-dialog__content">
+  <nav class="folder-picker-dialog__breadcrumb" aria-label="Folder path">
+    @for (crumb of crumbs(); track $index) {
+      <button
+        mat-button
+        type="button"
+        (click)="goToCrumb($index)"
+        [attr.aria-label]="'Go to ' + crumb.label"
+      >
+        {{ crumb.label }}
+      </button>
+      @if (!$last) {
+        <span aria-hidden="true">/</span>
+      }
+    }
+  </nav>
+
+  @if (loading()) {
+    <div class="folder-picker-dialog__loading">
+      <mat-progress-spinner diameter="32" mode="indeterminate" />
+    </div>
+  } @else {
+    <mat-nav-list>
+      @for (partition of partitions(); track partition.id) {
+        <a mat-list-item (click)="openPartition(partition)" [attr.aria-label]="'Open ' + partition.name">
+          <mat-icon matListItemIcon>folder</mat-icon>
+          <span matListItemTitle>{{ partition.name }}</span>
+        </a>
+      }
+      @for (folder of folders(); track folder.id) {
+        <a mat-list-item (click)="openFolder(folder)" [attr.aria-label]="'Open ' + folder.name">
+          <mat-icon matListItemIcon>folder</mat-icon>
+          <span matListItemTitle>{{ folder.name }}</span>
+        </a>
+      }
+      @if (partitions().length === 0 && folders().length === 0) {
+        <p class="folder-picker-dialog__empty">No subfolders here.</p>
+      }
+    </mat-nav-list>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()" aria-label="Cancel">Cancel</button>
+  <button
+    mat-flat-button
+    color="primary"
+    type="button"
+    [disabled]="!currentPartitionId()"
+    (click)="selectHere()"
+    aria-label="Select this folder"
+  >
+    Select this folder
+  </button>
+</mat-dialog-actions>

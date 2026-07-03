@@ -1,0 +1,44 @@
+<nav class="side-nav" aria-label="Main navigation">
+  <div class="side-nav__brand">PosteaCloud</div>
+
+  <mat-nav-list>
+    <a
+      mat-list-item
+      routerLink="/"
+      routerLinkActive="side-nav__active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      aria-label="Home"
+    >
+      <mat-icon matListItemIcon>home</mat-icon>
+      <span matListItemTitle>Home</span>
+    </a>
+    <a mat-list-item routerLink="/shared" routerLinkActive="side-nav__active" aria-label="Shared with me">
+      <mat-icon matListItemIcon>people</mat-icon>
+      <span matListItemTitle>Shared with me</span>
+    </a>
+    <a mat-list-item routerLink="/recent" routerLinkActive="side-nav__active" aria-label="Recent">
+      <mat-icon matListItemIcon>history</mat-icon>
+      <span matListItemTitle>Recent</span>
+    </a>
+    <a mat-list-item routerLink="/trash" routerLinkActive="side-nav__active" aria-label="Trash">
+      <mat-icon matListItemIcon>delete</mat-icon>
+      <span matListItemTitle>Trash</span>
+    </a>
+    <a mat-list-item routerLink="/admin" routerLinkActive="side-nav__active" aria-label="Admin">
+      <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
+      <span matListItemTitle>Admin</span>
+    </a>
+  </mat-nav-list>
+
+  <div class="side-nav__spacer"></div>
+
+  <div class="side-nav__usage">
+    <span class="side-nav__usage-label">{{ usedLabel() }}</span>
+    <mat-progress-bar mode="determinate" [value]="usedPercent()" aria-label="Storage usage" />
+  </div>
+
+  <button mat-button class="side-nav__logout" (click)="logout()" aria-label="Sign out">
+    <mat-icon>logout</mat-icon>
+    Sign out
+  </button>
+</nav>

@@ -1,0 +1,16 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+<mat-dialog-content>
+  <p>{{ data.message }}</p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="close(false)" aria-label="Cancel">Cancel</button>
+  <button
+    mat-flat-button
+    type="button"
+    [color]="data.destructive ? 'warn' : 'primary'"
+    (click)="close(true)"
+    [attr.aria-label]="data.confirmLabel ?? 'Confirm'"
+  >
+    {{ data.confirmLabel ?? 'Confirm' }}
+  </button>
+</mat-dialog-actions>

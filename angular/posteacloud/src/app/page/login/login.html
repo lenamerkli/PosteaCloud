@@ -1,0 +1,85 @@
+<main class="login">
+  <mat-card class="login__card">
+    <mat-card-header>
+      <mat-card-title>PosteaCloud</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <form class="login__form" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input
+            matInput
+            type="email"
+            formControlName="email"
+            required
+            autocomplete="email"
+            aria-label="Email address"
+          />
+          @if (email.invalid && email.touched) {
+            <mat-error>Please enter a valid email address.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input
+            matInput
+            [type]="hidePassword() ? 'password' : 'text'"
+            formControlName="password"
+            required
+            autocomplete="current-password"
+            aria-label="Password"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            [attr.aria-label]="hidePassword() ? 'Show password' : 'Hide password'"
+            (click)="togglePasswordVisibility()"
+          >
+            <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+          @if (password.invalid && password.touched) {
+            <mat-error>Please enter your password.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>TOTP code</mat-label>
+          <input
+            matInput
+            type="text"
+            inputmode="numeric"
+            formControlName="totp"
+            required
+            maxlength="6"
+            autocomplete="one-time-code"
+            aria-label="6-digit one-time password"
+          />
+          @if (totp.invalid && totp.touched) {
+            <mat-error>Please enter your 6-digit TOTP code.</mat-error>
+          }
+        </mat-form-field>
+
+        @if (errorMessage()) {
+          <p class="login__error" role="alert">{{ errorMessage() }}</p>
+        }
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="login__submit"
+          [disabled]="loginForm.invalid || submitting()"
+          aria-label="Sign in"
+        >
+          @if (submitting()) {
+            <mat-progress-spinner diameter="20" mode="indeterminate" />
+          } @else {
+            Sign in
+          }
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</main>

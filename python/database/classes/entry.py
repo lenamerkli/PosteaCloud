@@ -385,12 +385,13 @@ class Entry:
     @classmethod
     def create_file(cls, path: str, partition, owner_id: str, parent_id: t.Union[str,None], name: str) -> 'Entry':
         hash_result = subprocess.run(
-            ['sha3_256sum', path],
+            ['openssl', 'dgst', '-sha3-256', '-r', path],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
-        hash_output = hash_result.stdout.strip()
+        # Output format: "<hash> <path>" or "<hash> *<path>"
+        hash_output = hash_result.stdout.strip().split()[0]
         size_result = subprocess.run(
             ['stat', '--printf=%s', path],
             capture_output=True,

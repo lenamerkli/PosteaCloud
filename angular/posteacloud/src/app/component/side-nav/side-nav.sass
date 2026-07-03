@@ -1,0 +1,32 @@
+.side-nav
+  display: flex
+  flex-direction: column
+  height: 100%
+  width: 240px
+  border-right: 1px solid var(--mat-sys-outline-variant)
+  box-sizing: border-box
+  padding: 8px 0
+
+  &__brand
+    font-size: 1.25rem
+    font-weight: 500
+    padding: 16px
+
+  &__spacer
+    flex: 1 1 auto
+
+  &__usage
+    padding: 8px 16px
+    display: flex
+    flex-direction: column
+    gap: 4px
+
+  &__usage-label
+    font-size: 0.75rem
+    color: var(--mat-sys-on-surface-variant)
+
+  &__logout
+    margin: 8px 16px
+
+  &__active
+    background: var(--mat-sys-secondary-container)
