@@ -13,6 +13,8 @@ EXCLUSIONS = [
     'web/',
     '.git/',
     '__pycache__',
+    'admins.txt',
+    '.env',
 ]
 
 
