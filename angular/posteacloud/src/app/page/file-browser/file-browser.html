@@ -87,9 +87,17 @@
         [value]="uploadProgress()"
         aria-label="Upload progress"
       />
-      <span class="file-browser__upload-text">
-        Uploading… {{ uploadDone() }} / {{ uploadTotal() }}
-      </span>
+      <div class="file-browser__upload-info">
+        <span class="file-browser__upload-text">
+          Uploading… {{ uploadDone() }} / {{ uploadTotal() }} files
+          @if (uploadBytesTotal() > 0) {
+            · {{ formatBytes(uploadBytesDone()) }} / {{ formatBytes(uploadBytesTotal()) }}
+          }
+          @if (uploadSpeed()) {
+            · {{ uploadSpeed() }}
+          }
+        </span>
+      </div>
     </div>
   }
 

@@ -26,7 +26,8 @@ import { NamePromptDialog, NamePromptDialogData } from '../../component/name-pro
 import { ShareDialog, ShareDialogData } from '../../component/share-dialog/share-dialog';
 import { BrowserRow, entryToRow, partitionToRow } from '../../other/browser-row';
 import { formatBytes } from '../../other/format-bytes';
-import { PathItem, StorageService } from '../../service/storage.service';
+import { PathItem, StorageService, UploadProgress } from '../../service/storage.service';
+import { Subscription } from 'rxjs';
 import { Entry } from '../../type/entry';
 import { Partition } from '../../type/partition';
 
@@ -84,8 +85,11 @@ export class FileBrowser {
   // Upload state
   protected readonly isUploading = signal(false);
   protected readonly uploadProgress = signal(0);    // 0–100
-  protected readonly uploadTotal = signal(0);
-  protected readonly uploadDone = signal(0);
+  protected readonly uploadTotal = signal(0);       // total file count
+  protected readonly uploadDone = signal(0);        // files completed
+  protected readonly uploadBytesDone = signal(0);   // bytes uploaded
+  protected readonly uploadBytesTotal = signal(0);  // total bytes
+  protected readonly uploadSpeed = signal('');      // e.g. "2.3 MB/s"
   protected readonly uploadErrors = signal<string[]>([]);
 
   private readonly mode = signal<Mode>('root');
@@ -134,6 +138,11 @@ export class FileBrowser {
         queryParams: { q: value.trim() || null },
         queryParamsHandling: 'merge',
       });
+    });
+
+    // Cancel any in-flight upload when the component is destroyed.
+    this.destroyRef.onDestroy(() => {
+      this.uploadSub?.unsubscribe();
     });
   }
 
@@ -337,6 +346,11 @@ export class FileBrowser {
 
   protected formatSize(row: BrowserRow): string {
     return row.size != null ? formatBytes(row.size) : '—';
+  }
+
+  /** Expose the byte formatter so the template can use it directly. */
+  protected formatBytes(n: number): string {
+    return formatBytes(n);
   }
 
   protected openRow(row: BrowserRow): void {
@@ -596,19 +610,43 @@ export class FileBrowser {
     this._runBatchUpload(target, files, relativePaths);
   }
 
+  private uploadSub: Subscription | null = null;
+
   private _runBatchUpload(target: string, files: File[], relativePaths: string[]): void {
+    // Cancel any running upload.
+    this.uploadSub?.unsubscribe();
+
     this.isUploading.set(true);
     this.uploadProgress.set(0);
     this.uploadTotal.set(files.length);
     this.uploadDone.set(0);
+    this.uploadBytesDone.set(0);
+    this.uploadBytesTotal.set(files.reduce((a, f) => a + f.size, 0));
+    this.uploadSpeed.set('');
     this.uploadErrors.set([]);
     this.errorMessage.set('');
 
-    this.storageService.uploadBatch(target, files, relativePaths).subscribe({
-      next: (response) => {
+    const { progress$, response$ } = this.storageService.uploadBatchWithProgress(
+      target,
+      files,
+      relativePaths,
+    );
+
+    this.uploadSub = new Subscription();
+
+    this.uploadSub.add(
+      progress$.subscribe((p: UploadProgress) => {
+        this.uploadProgress.set(p.percent);
+        this.uploadDone.set(p.filesDone);
+        this.uploadBytesDone.set(p.bytesUploaded);
+        this.uploadSpeed.set(p.speed);
+      }),
+    );
+
+    this.uploadSub.add(
+      response$.subscribe((response) => {
         const done = response.entries.length;
-        this.uploadDone.set(done);
-        this.uploadProgress.set(Math.round((done / files.length) * 100));
+        const total = files.length;
 
         const errors: string[] = [];
         if (response.upload_errors) {
@@ -626,12 +664,8 @@ export class FileBrowser {
 
         this.isUploading.set(false);
         this.reload();
-      },
-      error: (error) => {
-        this.isUploading.set(false);
-        this.finishError(error);
-      },
-    });
+      }),
+    );
   }
 
   private writeTargetContext(): { partitionId: string | null; parentId: string | null } {
