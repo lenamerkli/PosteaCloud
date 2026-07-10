@@ -31,6 +31,7 @@ if DEVELOPMENT:
         SESSION_COOKIE_SECURE=False,
         SESSION_COOKIE_SAMESITE='Strict',
         PERMANENT_SESSION_LIFETIME=timedelta(days=128),
+        MAX_CONTENT_LENGTH=None,  # no limit on request body (streaming uploads)
     )
 else:
     app.config.update(
@@ -39,6 +40,7 @@ else:
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_SAMESITE='Strict',
         PERMANENT_SESSION_LIFETIME=timedelta(days=128),
+        MAX_CONTENT_LENGTH=None,  # no limit on request body (streaming uploads)
     )
 
 LogBasicConfig(filename='main.log', format='%(asctime)s\t%(message)s', datefmt=DATE_FORMAT, level=LOG_INFO)

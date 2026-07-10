@@ -1,7 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, Response, request
 from logging import log
-import tempfile
 from werkzeug.utils import secure_filename
 
 from database.classes.entry import Entry
@@ -377,41 +376,17 @@ def r_etnries_parent_upload(parent_id: str):
     """
     Upload a file.  ``parent_id`` can be a folder entry id or a partition id
     (for uploading directly into a partition root).
+
+    The file is streamed directly into the content-addressed store — no
+    intermediate temp file on the OS tmp partition.
     """
     user, err = _auth_user()
     if err:
         return err
 
-    parent_entry = None
-    partition = None
-    actual_parent_id = None
-
-    # Try loading as a folder entry first
-    try:
-        parent_entry = Entry.load(parent_id)
-    except ValueError:
-        pass
-
-    if parent_entry:
-        if parent_entry.type_ != 'folder':
-            return {'error': 'invalid type', 'message': 'Parent must be a folder.'}, 400
-        part, err = _get_partition_or_error(parent_entry.partition_id, user)
-        if err:
-            return err
-        partition = part
-        actual_parent_id = parent_entry.id_
-        if not parent_entry.can_user_edit(user.id_):
-            return {'error': 'forbidden', 'message': 'Write access denied.'}, 403
-    else:
-        # Treat as a partition
-        part, err = _get_partition_or_error(parent_id, user)
-        if err:
-            return err
-        partition = part
-        actual_parent_id = None
-        edit_err = _check_partition_edit(partition, user)
-        if edit_err:
-            return edit_err
+    partition, actual_parent_id, err = _resolve_upload_target(parent_id, user)
+    if err:
+        return err
 
     if 'file' not in request.files:
         return {'error': 'validation', 'message': 'No file provided.'}, 400
@@ -422,14 +397,9 @@ def r_etnries_parent_upload(parent_id: str):
 
     name = file.filename.strip()
 
-    tmp_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp_path = tmp.name
-            file.save(tmp_path)
-
-        entry = Entry.create_file(
-            path=tmp_path,
+        entry = Entry.create_file_stream(
+            stream=file.stream,
             partition=partition,
             owner_id=user.id_,
             parent_id=actual_parent_id,
@@ -438,16 +408,6 @@ def r_etnries_parent_upload(parent_id: str):
     except Exception as ex:
         log(20, f"storage: upload failed: {ex}")
         return {'error': 'upload failed', 'message': str(ex)}, 500
-    finally:
-        # The file has been moved into the storage backend by create_file on
-        # success; if an error occurred before or during creation the temp file
-        # should still be cleaned up.
-        if tmp_path is not None:
-            import os as _os
-            try:
-                _os.unlink(tmp_path)
-            except FileNotFoundError:
-                pass
 
     entry.save()
 
@@ -462,42 +422,19 @@ def r_etnries_parent_upload(parent_id: str):
 def r_entries_parent_upload_batch(parent_id: str):
     """
     Upload multiple files at once. ``parent_id`` can be a folder entry id or
-    a partition id. A ``relative_path`` form field may accompany each file to
-    recreate a directory structure (e.g. "sub/dir/file.txt").
+    a partition id. A ``relative_paths`` form field (one per file) may
+    accompany each file to recreate a directory structure.
+
+    Each file is streamed directly into the content-addressed store — no
+    temporary copy lands in the OS tmp directory.
     """
     user, err = _auth_user()
     if err:
         return err
 
-    # Resolve parent — same logic as single-file upload
-    parent_entry = None
-    partition = None
-    actual_parent_id = None
-
-    try:
-        parent_entry = Entry.load(parent_id)
-    except ValueError:
-        pass
-
-    if parent_entry:
-        if parent_entry.type_ != 'folder':
-            return {'error': 'invalid type', 'message': 'Parent must be a folder.'}, 400
-        part, err = _get_partition_or_error(parent_entry.partition_id, user)
-        if err:
-            return err
-        partition = part
-        actual_parent_id = parent_entry.id_
-        if not parent_entry.can_user_edit(user.id_):
-            return {'error': 'forbidden', 'message': 'Write access denied.'}, 403
-    else:
-        part, err = _get_partition_or_error(parent_id, user)
-        if err:
-            return err
-        partition = part
-        actual_parent_id = None
-        edit_err = _check_partition_edit(partition, user)
-        if edit_err:
-            return edit_err
+    partition, actual_parent_id, err = _resolve_upload_target(parent_id, user)
+    if err:
+        return err
 
     uploaded_files = request.files.getlist('files')
     if not uploaded_files:
@@ -514,13 +451,9 @@ def r_entries_parent_upload_batch(parent_id: str):
             continue
 
         rel_path = relative_paths[idx] if idx < len(relative_paths) else None
-        # Build folder structure if a relative path was supplied
         current_parent_id = actual_parent_id
         if rel_path:
-            # Split relative path into directory components; the last
-            # component is the file name itself.
             parts = rel_path.strip().split('/')
-            # If the path has directory components, create/find folders
             if len(parts) > 1:
                 for dir_name in parts[:-1]:
                     if not dir_name:
@@ -538,15 +471,9 @@ def r_entries_parent_upload_batch(parent_id: str):
         if not name:
             continue
 
-        tmp_path = None
         try:
-            import os as _os
-            with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                tmp_path = tmp.name
-                file.save(tmp_path)
-
-            entry = Entry.create_file(
-                path=tmp_path,
+            entry = Entry.create_file_stream(
+                stream=file.stream,
                 partition=partition,
                 owner_id=user.id_,
                 parent_id=current_parent_id,
@@ -557,12 +484,6 @@ def r_entries_parent_upload_batch(parent_id: str):
         except Exception as ex:
             log(20, f"storage: batch upload failed for {name}: {ex}")
             errors_list.append({'file': name, 'error': str(ex)})
-        finally:
-            if tmp_path is not None:
-                try:
-                    _os.unlink(tmp_path)
-                except FileNotFoundError:
-                    pass
 
     status_code = 201 if results else 500
     body = {
@@ -575,11 +496,39 @@ def r_entries_parent_upload_batch(parent_id: str):
     return body, status_code
 
 
+def _resolve_upload_target(parent_id: str, user):
+    """Shared helper: validate *parent_id* and return (partition, parent_id_or_None, error_tuple).
+
+    Returns (partition, actual_parent_id, None) on success, or (None, None, error_response) on failure.
+    """
+    parent_entry = None
+    try:
+        parent_entry = Entry.load(parent_id)
+    except ValueError:
+        pass
+
+    if parent_entry:
+        if parent_entry.type_ != 'folder':
+            return None, None, ({'error': 'invalid type', 'message': 'Parent must be a folder.'}, 400)
+        part, err = _get_partition_or_error(parent_entry.partition_id, user)
+        if err:
+            return None, None, err
+        if not parent_entry.can_user_edit(user.id_):
+            return None, None, ({'error': 'forbidden', 'message': 'Write access denied.'}, 403)
+        return part, parent_entry.id_, None
+
+    part, err = _get_partition_or_error(parent_id, user)
+    if err:
+        return None, None, err
+    edit_err = _check_partition_edit(part, user)
+    if edit_err:
+        return None, None, edit_err
+    return part, None, None
+
+
 def _ensure_folder(name: str, partition, parent_id, owner_id: str) -> str:
     """Return the id of an existing folder with *name* under *parent_id*, or
     create it and return the new id."""
-    from database.main import query_db
-
     existing = query_db(
         'SELECT id FROM entries WHERE type=? AND name=? AND parent_id=? '
         'AND partition_id=? AND deleted IS NULL',

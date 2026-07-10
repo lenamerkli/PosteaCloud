@@ -1,12 +1,31 @@
 from datetime import datetime
-from os import makedirs
-from os.path import join, dirname
+from hashlib import sha3_256 as _sha3_256
+from os import makedirs, unlink as _os_unlink
+from os.path import join, dirname, exists as _path_exists
 import subprocess
 import typing as t
 
 from ..main import query_db
 from util.misc import DATE_FORMAT
 from util.rand import rand_id
+
+# Incremental SHA3-256 helpers (pure Python, no subprocess overhead)
+def _new_sha3_256():
+    """Return a fresh incremental SHA3-256 hasher."""
+    return _sha3_256()
+
+def _hash_file(path: str) -> tuple:
+    """Return (hexdigest, size) for an existing file on disk."""
+    hasher = _new_sha3_256()
+    size = 0
+    with open(path, 'rb') as f:
+        while True:
+            chunk = f.read(512 * 1024)  # 512 KiB
+            if not chunk:
+                break
+            hasher.update(chunk)
+            size += len(chunk)
+    return hasher.hexdigest(), size
 
 class Entry:
 
@@ -384,27 +403,78 @@ class Entry:
 
     @classmethod
     def create_file(cls, path: str, partition, owner_id: str, parent_id: t.Union[str,None], name: str) -> 'Entry':
-        hash_result = subprocess.run(
-            ['openssl', 'dgst', '-sha3-256', '-r', path],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        # Output format: "<hash> <path>" or "<hash> *<path>"
-        hash_output = hash_result.stdout.strip().split()[0]
-        size_result = subprocess.run(
-            ['stat', '--printf=%s', path],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        size = int(size_result.stdout)
-        dest_path = join(partition.get_drive().location, hash_output[:2], hash_output[2:4], hash_output[4:])
+        """Create an Entry by hashing and moving an existing file on disk."""
+        hash_output, size = _hash_file(path)
+        return cls._move_into_store(hash_output, size, partition, owner_id, parent_id, name, path)
+
+    @classmethod
+    def create_file_stream(
+        cls, stream, partition, owner_id: str, parent_id: t.Union[str, None], name: str,
+    ) -> 'Entry':
+        """Create an Entry by streaming bytes from *stream*, hashing incrementally.
+
+        Writes directly into the drive location — no intermediate temp file.
+        Suitable for large uploads where the entire body should not be spooled
+        into memory.
+        """
+        drive_root = partition.get_drive().location
+        hasher = _new_sha3_256()
+        size = 0
+
+        # Write into a temp file inside the drive root so the final rename(2)
+        # stays on the same filesystem (atomic move).
+        tmp_id = rand_id('tmp')
+        tmp_path = join(drive_root, f'.upload-{tmp_id}')
+        try:
+            with open(tmp_path, 'wb') as outf:
+                while True:
+                    chunk = stream.read(512 * 1024)  # 512 KiB
+                    if not chunk:
+                        break
+                    hasher.update(chunk)
+                    outf.write(chunk)
+                    size += len(chunk)
+        except Exception:
+            try:
+                _os_unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+            raise
+
+        hash_output = hasher.hexdigest()
+        return cls._move_into_store(hash_output, size, partition, owner_id, parent_id, name, tmp_path)
+
+    @classmethod
+    def _move_into_store(
+        cls, hash_output: str, size: int, partition, owner_id: str,
+        parent_id: t.Union[str, None], name: str, src_path: str,
+    ) -> 'Entry':
+        """Move *src_path* into the content-addressed store.
+
+        If a file with the same hash already exists under this (owner,
+        partition, parent) the source is removed and the existing Entry
+        returned instead (deduplication).
+        """
+        dest_rel = join(hash_output[:2], hash_output[2:4], hash_output[4:])
+        dest_path = join(partition.get_drive().location, dest_rel)
+
         makedirs(dirname(dest_path), exist_ok=True)
-        subprocess.run(['mv', path, dest_path], check=True)
-        db_result = query_db('SELECT id FROM entries WHERE hash=? AND owner_id=? AND partition_id=? AND parent_id=?', (hash_output, owner_id, partition.id_, parent_id), True)
-        if db_result:
-            return Entry.load(db_result[0])
+
+        if _path_exists(dest_path):
+            try:
+                _os_unlink(src_path)
+            except FileNotFoundError:
+                pass
+        else:
+            subprocess.run(['mv', src_path, dest_path], check=True)
+
+        existing = query_db(
+            'SELECT id FROM entries WHERE hash=? AND owner_id=? AND partition_id=? AND parent_id=?',
+            (hash_output, owner_id, partition.id_, parent_id),
+            True,
+        )
+        if existing:
+            return Entry.load(existing[0])
         return Entry(
             type_='file',
             name=name,
