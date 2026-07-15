@@ -634,6 +634,13 @@ export class FileBrowser {
 
     this.uploadSub = new Subscription();
 
+    // Also track the underlying HTTP/XHR subscription so that
+    // unsubscribing actually aborts the in-flight request(s).
+    const httpSub = (response$ as { _sub?: Subscription })._sub;
+    if (httpSub) {
+      this.uploadSub.add(httpSub);
+    }
+
     this.uploadSub.add(
       progress$.subscribe((p: UploadProgress) => {
         this.uploadProgress.set(p.percent);

@@ -421,6 +421,9 @@ class Entry:
         hasher = _new_sha3_256()
         size = 0
 
+        # Ensure the drive directory exists before writing the temp file.
+        makedirs(drive_root, exist_ok=True)
+
         # Write into a temp file inside the drive root so the final rename(2)
         # stays on the same filesystem (atomic move).
         tmp_id = rand_id('tmp')
