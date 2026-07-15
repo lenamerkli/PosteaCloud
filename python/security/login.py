@@ -76,6 +76,7 @@ def get_user_id(no_invalidation=False):
 
 
 def create_session(user_id: str):
+    session.permanent = True
     session['token'] = rand_base64(64)
     query_db('INSERT INTO sessions (id, user_id, created, expires, browser) VALUES (?, ?, ?, ?, ?)', (session['token'], user_id, datetime.now().strftime(DATE_FORMAT), (datetime.now() + timedelta(days=32)).strftime(DATE_FORMAT), parse_login_user_agent()))
 
